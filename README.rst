@@ -16,3 +16,5 @@ Examples
 --------
 
 You can find some examples in the `examples folder`_.
+
+.. _examples folder: https://github.com/tailhook/rotor-redis/tree/master/examples
