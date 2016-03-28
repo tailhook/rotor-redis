@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::marker::PhantomData;
 
 use rotor::{Scope};
@@ -49,6 +50,12 @@ impl<C: Context, S: ActiveStream> Protocol for RedisProto<C, S> {
     fn exception(self, _transport: &mut Transport<Self::Socket>,
         reason: Exception, _scope: &mut Scope<Self::Context>)
         -> Intent<Self>
+    {
+        // TODO(tailhook) fail all the requests
+        unimplemented!();
+    }
+    fn fatal(self, reason: Exception, _scope: &mut Scope<Self::Context>)
+        -> Option<Box<Error>>
     {
         // TODO(tailhook) fail all the requests
         unimplemented!();

@@ -1,17 +1,41 @@
 extern crate argparse;
-extern crate rotor;
+#[macro_use] extern crate rotor;
 extern crate rotor_redis;
 extern crate rotor_tools;
 
 use argparse::{ArgumentParser, Store, List};
+use rotor::{Scope, Response, Void};
+use rotor::void::unreachable;
+use rotor::mio::tcp::TcpStream;
 use rotor_redis::{connect_ip, Redis};
+use rotor_tools::uniform::{Uniform, Action};
 use rotor_tools::loop_ext::LoopExt;
 
 
 struct Context;
+struct Stop;
+
+rotor_compose! {
+    enum Fsm/Seed<Context> {
+        Redis(rotor_redis::Fsm<Context, TcpStream>),
+        Stop(Uniform<Stop>),
+    }
+}
 
 impl rotor_redis::Context for Context {
     // all defaults
+}
+
+impl Action for Stop {
+    type Context = Context;
+    type Seed = Void;
+    fn create(seed: Void, scope: &mut Scope<Context>) -> Response<Self, Void> {
+        unreachable(seed);
+    }
+    fn action(self, scope: &mut Scope<Context>) -> Response<Self, Void> {
+        scope.shutdown_loop();
+        Response::done()
+    }
 }
 
 
@@ -38,9 +62,13 @@ fn main() {
 
     let mut loop_creator = rotor::Loop::new(
         &rotor::Config::new()).unwrap();
-    let redis: Redis<Context, _> = loop_creator.add_and_fetch(|x| x, |scope| {
-        connect_ip(scope,
-            format!("{}:{}", host, port).parse().unwrap(), db)
+    let redis: Redis<Context, _> = loop_creator.add_and_fetch(Fsm::Redis,
+        |scope| {
+            connect_ip(scope,
+                format!("{}:{}", host, port).parse().unwrap(), db)
+        }).unwrap();
+    loop_creator.add_machine_with(|scope| {
+        Response::ok(Fsm::Stop(Uniform(Stop)))
     }).unwrap();
-
+    loop_creator.run(Context);
 }
