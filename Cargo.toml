@@ -1,0 +1,24 @@
+[package]
+name = "rotor-redis"
+description = """
+    The mio-based redis client protocol implementation
+"""
+license = "MIT/Apache-2.0"
+readme = "README.rst"
+keywords = ["mio", "redis", "rotor", "async", "database"]
+homepage = "http://github.com/tailhook/rotor-redis"
+version = "0.1.0"
+authors = ["paul@colomiets.name"]
+
+[dependencies]
+rotor = "0.6.1"
+rotor-stream = {rev="1d0b856", git="git://github.com/tailhook/rotor-stream"}
+rotor-tools = "0.3.1"
+quick-error = "1.0.0"
+
+[dev-dependencies]
+argparse = "0.2.1"
+
+[lib]
+name = "rotor_redis"
+path = "src/lib.rs"
