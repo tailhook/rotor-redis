@@ -12,9 +12,13 @@ use rotor_tools::sync::{Mutexed};
 
 mod proto;
 mod context;
+mod api;
+mod message;
+mod port;
 
 use proto::RedisProto;
 pub use context::Context;
+pub use message::Message;
 
 pub type Fsm<C, S> = Mutexed<Persistent<RedisProto<C, S>>>;
 
