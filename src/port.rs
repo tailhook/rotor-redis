@@ -4,11 +4,13 @@ use rotor_tools::future::{FutureImpl};
 
 use {Message};
 
-trait PortImpl {
+// TODO(tailhook) make private
+pub trait PortImpl {
     fn put(&mut self, message: &Message);
 }
 
-pub struct Port(Arc<Mutex<PortImpl>>);
+// TODO(tailhook) make internals private
+pub struct Port(pub Arc<Mutex<PortImpl>>);
 
 impl Port {
     pub fn put(self, val: &Message) {

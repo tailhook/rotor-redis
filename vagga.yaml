@@ -21,7 +21,7 @@ commands:
   example-with-redis: !Supervise
     description: Run example with redis server
     children:
-      redis: !Command
+      redis: &redis !Command
         container: redis
         run:
         - redis-server
@@ -38,6 +38,22 @@ commands:
         - run
         - --example
         - query
+        - "--"
+        - --port=3001
+        - INCR
+        - hello-world
+
+  example-http: !Supervise
+    description: Run example of http which goes to redis server
+    children:
+      redis: *redis
+      example: !Command
+        container: ubuntu
+        run:
+        - cargo
+        - run
+        - --example
+        - redis
         - "--"
         - --port=3001
         - INCR

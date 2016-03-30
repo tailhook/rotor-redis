@@ -7,18 +7,19 @@ use argparse::{ArgumentParser, Store, List};
 use rotor::{Scope, Response, Void};
 use rotor::void::unreachable;
 use rotor::mio::tcp::TcpStream;
-use rotor_redis::{connect_ip, Redis};
 use rotor_tools::uniform::{Uniform, Action};
 use rotor_tools::loop_ext::LoopExt;
 
+use rotor_redis::{connect_ip, Redis, Future};
+use rotor_redis::Message::Int;
 
 struct Context;
-struct Stop;
+struct PrintAndStop(Future<i64>);
 
 rotor_compose! {
     enum Fsm/Seed<Context> {
         Redis(rotor_redis::Fsm<Context, TcpStream>),
-        Stop(Uniform<Stop>),
+        Stop(Uniform<PrintAndStop>),
     }
 }
 
@@ -26,15 +27,21 @@ impl rotor_redis::Context for Context {
     // all defaults
 }
 
-impl Action for Stop {
+impl Action for PrintAndStop {
     type Context = Context;
     type Seed = Void;
-    fn create(seed: Void, scope: &mut Scope<Context>) -> Response<Self, Void> {
+    fn create(seed: Void, _scope: &mut Scope<Context>) -> Response<Self, Void>
+    {
         unreachable(seed);
     }
     fn action(self, scope: &mut Scope<Context>) -> Response<Self, Void> {
-        scope.shutdown_loop();
-        Response::done()
+        if self.0.is_done() {
+            println!("Counter {:?}", self.0.consume().unwrap());
+            scope.shutdown_loop();
+            Response::done()
+        } else {
+            Response::ok(self)
+        }
     }
 }
 
@@ -62,13 +69,19 @@ fn main() {
 
     let mut loop_creator = rotor::Loop::new(
         &rotor::Config::new()).unwrap();
-    let redis: Redis<Context, _> = loop_creator.add_and_fetch(Fsm::Redis,
+    let mut redis: Redis<Context, _> = loop_creator.add_and_fetch(Fsm::Redis,
         |scope| {
             connect_ip(scope,
                 format!("{}:{}", host, port).parse().unwrap(), db)
         }).unwrap();
     loop_creator.add_machine_with(|scope| {
-        Response::ok(Fsm::Stop(Uniform(Stop)))
+        let future = redis.incr("hello-world").then(scope, |msg| {
+            match *msg {
+                Int(x) => x,
+                _ => unreachable!(),
+            }
+        });
+        Response::ok(Fsm::Stop(Uniform(PrintAndStop(future))))
     }).unwrap();
-    loop_creator.run(Context);
+    loop_creator.run(Context).unwrap();
 }

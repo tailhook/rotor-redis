@@ -12,12 +12,13 @@ authors = ["paul@colomiets.name"]
 
 [dependencies]
 rotor = "0.6.1"
-rotor-stream = "0.6.1"
-rotor-tools = { rev="00f6c70", git="git://github.com/tailhook/rotor-tools" }
+rotor-stream = { rev="a870b67", git="git://github.com/tailhook/rotor-stream" }
+rotor-tools = { rev="a022a23", git="git://github.com/tailhook/rotor-tools" }
 quick-error = "1.0.0"
 
 [dev-dependencies]
 argparse = "0.2.1"
+rotor-http = "0.7.0"
 
 [lib]
 name = "rotor_redis"
