@@ -7,6 +7,7 @@ use rotor_stream::{Protocol, ActiveStream, Intent, Transport, Exception};
 
 use {Context};
 use port::Port;
+use message::Message;
 
 pub struct RedisProto<C, S> {
     pub pipeline: VecDeque<Port>,
@@ -27,11 +28,39 @@ impl<C: Context, S: ActiveStream> Protocol for RedisProto<C, S> {
             phantom: PhantomData,
         }).expect_flush().deadline(scope.now() + scope.connect_timeout())
     }
-    fn bytes_read(self, transport: &mut Transport<Self::Socket>,
+    fn bytes_read(mut self, transport: &mut Transport<Self::Socket>,
         end: usize, scope: &mut Scope<Self::Context>)
         -> Intent<Self>
     {
-        unimplemented!();
+        use message::ParseResult::*;
+        use message::Expectation::*;
+        let inp = transport.input();
+        let bytes_read = inp.len();
+        let bytes = match Message::parse(&inp[..]) {
+            Done(msg, bytes) => {
+                self.pipeline.pop_front().expect("request in a pipeline")
+                    .put(&msg);
+                bytes
+            }
+            Expect(x) => match x {
+                Newline => {
+                    // TODO(tailhook) set a deadline
+                    return Intent::of(self).expect_delimiter_after(
+                                bytes_read-1, b"\r\n",
+                                scope.max_redis_message());
+                }
+                More(x) => {
+                    // TODO(tailhook) set a deadline
+                    return Intent::of(self).expect_bytes(x);
+                }
+            },
+            InvalidData => {
+                // TODO(tailhook) pass correct exception
+                return Intent::done();
+            }
+        };
+        inp.consume(bytes);
+        return Intent::of(self).expect_bytes(1);
     }
     fn bytes_flushed(self, transport: &mut Transport<Self::Socket>,
         scope: &mut Scope<Self::Context>)
@@ -56,7 +85,7 @@ impl<C: Context, S: ActiveStream> Protocol for RedisProto<C, S> {
         // This is called by external code to flush the buffers
         //
         // TODO(tailhook) derive the real intent
-        Intent::of(self).sleep()
+        Intent::of(self).expect_bytes(1)
     }
 
     fn exception(self, _transport: &mut Transport<Self::Socket>,

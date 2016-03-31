@@ -15,6 +15,7 @@ rotor = "0.6.1"
 rotor-stream = { rev="a870b67", git="git://github.com/tailhook/rotor-stream" }
 rotor-tools = { rev="a022a23", git="git://github.com/tailhook/rotor-tools" }
 quick-error = "1.0.0"
+memchr = "0.1.10"
 
 [dev-dependencies]
 argparse = "0.2.1"

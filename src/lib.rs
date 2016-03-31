@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
 
+extern crate memchr;
 extern crate rotor;
 extern crate rotor_stream;
 extern crate rotor_tools;
@@ -15,6 +16,7 @@ mod context;
 mod api;
 mod message;
 mod port;
+mod substr;
 pub mod conversion;
 pub mod cmd;
 
