@@ -78,7 +78,7 @@ impl Server for HelloWorld {
     fn timeout(self, _response: &mut Response, _scope: &mut Scope<Context>)
         -> Option<(Self, Time)>
     {
-        unimplemented!();
+        panic!("TIMEOUT: not impelmented");
     }
     fn wakeup(self, res: &mut Response, _scope: &mut Scope<Context>)
         -> Option<Self>

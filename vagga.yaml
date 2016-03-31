@@ -53,11 +53,7 @@ commands:
         - cargo
         - run
         - --example
-        - redis
-        - "--"
-        - --port=3001
-        - INCR
-        - hello-world
+        - http
 
 containers:
 

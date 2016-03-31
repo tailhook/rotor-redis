@@ -53,7 +53,10 @@ impl<C: Context, S: ActiveStream> Protocol for RedisProto<C, S> {
         scope: &mut Scope<Self::Context>)
         -> Intent<Self>
     {
-        unimplemented!();
+        // This is called by external code to flush the buffers
+        //
+        // TODO(tailhook) derive the real intent
+        Intent::of(self).sleep()
     }
 
     fn exception(self, _transport: &mut Transport<Self::Socket>,

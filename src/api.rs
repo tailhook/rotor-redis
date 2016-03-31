@@ -1,12 +1,11 @@
 use std::fmt::Debug;
 
 use rotor_tools::future::{new as future, Future, GetNotifier, MakeFuture};
-use rotor_stream::ActiveStream;
+use rotor_stream::{ActiveStream, Buf};
 
 use {Redis, Context, Message};
 use port::Port;
-
-trait ToRedisCommand { }
+use conversion::ToRedisCommand;
 
 pub struct Promise<'a, X: 'a, S: 'a, C>(&'a Redis<X, S>, C)
     where X: Context, S: ActiveStream, S::Address: Clone + Debug;
@@ -19,16 +18,18 @@ impl<'a, X: 'a, S: 'a, C: ToRedisCommand> Promise<'a, X, S, C>
               F: FnOnce(&Message) -> O + 'static,
               N: GetNotifier
     {
-        let mut lock = (self.0).0.lock().expect("lock redis connection");
         // TODO(tailhook) write data to the buffer
         let imp = future(notifier, fun);
+
+        let mut lock = (self.0).0.lock().expect("lock redis connection");
+        self.1.write_into(
+            lock.transport().expect("valid redis transport").output());
         lock.protocol().expect("valid redis proto")
             .pipeline.push_back(Port(imp.clone()));
+        (self.0).1.wakeup().expect("redis notify");
+
         imp.make_future()
     }
-}
-
-impl<'a, K: AsRef<[u8]> + Sized> ToRedisCommand for (&'a str, K) {
 }
 
 // Should be moved to traits

@@ -15,6 +15,7 @@ mod context;
 mod api;
 mod message;
 mod port;
+pub mod conversion;
 pub mod cmd;
 
 use proto::RedisProto;
