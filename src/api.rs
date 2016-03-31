@@ -8,7 +8,7 @@ use port::Port;
 
 trait ToRedisCommand { }
 
-pub struct Promise<'a, X: 'a, S: 'a, C>(&'a mut Redis<X, S>, C)
+pub struct Promise<'a, X: 'a, S: 'a, C>(&'a Redis<X, S>, C)
     where X: Context, S: ActiveStream, S::Address: Clone + Debug;
 
 impl<'a, X: 'a, S: 'a, C: ToRedisCommand> Promise<'a, X, S, C>
@@ -35,7 +35,7 @@ impl<'a, K: AsRef<[u8]> + Sized> ToRedisCommand for (&'a str, K) {
 impl<C, S> Redis<C, S>
     where C: Context, S: ActiveStream, S::Address: Clone + Debug
 {
-    pub fn incr<K: AsRef<[u8]> + Sized>(&mut self, key: K)
+    pub fn incr<K: AsRef<[u8]> + Sized>(&self, key: K)
         -> Promise<C, S, (&str, K)>
     {
         Promise(self, ("INCR", key))
