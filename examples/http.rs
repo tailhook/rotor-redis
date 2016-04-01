@@ -1,3 +1,4 @@
+extern crate argparse;
 #[macro_use] extern crate rotor;
 extern crate rotor_http;
 extern crate rotor_redis;
@@ -5,6 +6,7 @@ extern crate rotor_tools;
 
 use std::time::Duration;
 
+use argparse::{ArgumentParser, Store};
 use rotor::{Scope, Time};
 use rotor::mio::tcp::TcpStream;
 use rotor_http::server::{RecvMode, Server, Head, Response};
@@ -96,12 +98,32 @@ impl Server for HelloWorld {
 }
 
 fn main() {
+
+    let mut redis_host = "127.0.0.1".to_string();
+    let mut redis_port = 2003u16;
+    let mut redis_db = 0u32;
+    {
+        let mut ap = ArgumentParser::new();
+        ap.set_description("Execute redis commands. It's similar to
+        redis-cli but has no interactive mode and othervise very simple");
+        ap.refer(&mut redis_host).add_option(&["--redis-host"], Store, "
+            Redis host to connect to. Name resolution is done on start only.");
+        ap.refer(&mut redis_port).add_option(&["--redis-port"], Store, "
+            Redis port to connect to. Default is 6379 which is the default port
+            for redis.");
+        ap.refer(&mut redis_db).add_option(&["--redis-db"], Store, "
+            The database number (default `0`)");
+        ap.parse_args_or_exit();
+    }
+
     println!("Starting http server on http://127.0.0.1:3000/");
-    println!("Expecting redis at redis://127.0.0.1:3001/0");
+    println!("Expecting redis at redis://{}:{}/{}",
+        redis_host, redis_port, redis_db);
     let mut loop_creator = rotor::Loop::new(&rotor::Config::new()).unwrap();
     let redis: Redis<Context, _> = loop_creator.add_and_fetch(Fsm::Redis,
         |scope| {
-            connect_ip(scope, "127.0.0.1:3001".parse().unwrap(), 0)
+            connect_ip(scope, format!("{}:{}", redis_host, redis_port)
+                              .parse().unwrap(), redis_db)
         }).unwrap();
     let mut loop_inst = loop_creator.instantiate(Context {
         redis: redis,

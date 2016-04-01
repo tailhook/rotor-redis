@@ -54,6 +54,8 @@ commands:
         - run
         - --example
         - http
+        - "--"
+        - --redis-port=3001
 
 containers:
 

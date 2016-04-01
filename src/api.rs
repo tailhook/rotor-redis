@@ -36,6 +36,16 @@ impl<'a, X: 'a, S: 'a, C: ToRedisCommand> Promise<'a, X, S, C>
 impl<C, S> Redis<C, S>
     where C: Context, S: ActiveStream, S::Address: Clone + Debug
 {
+    pub fn get<K: AsRef<[u8]> + Sized>(&self, key: K)
+        -> Promise<C, S, (&str, K)>
+    {
+        Promise(self, ("GET", key))
+    }
+    pub fn set<K: AsRef<[u8]> + Sized>(&self, key: K)
+        -> Promise<C, S, (&str, K)>
+    {
+        Promise(self, ("SET", key))
+    }
     pub fn incr<K: AsRef<[u8]> + Sized>(&self, key: K)
         -> Promise<C, S, (&str, K)>
     {

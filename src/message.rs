@@ -60,7 +60,7 @@ impl<'a> Message<'a> {
                 }
             }
             Some(_) => {
-                unimplemented!();
+                panic!("Unimplemented data {:?}", from_utf8(bytes));
             }
             None => Expect(More(1)),
         }

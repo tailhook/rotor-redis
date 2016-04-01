@@ -4,13 +4,25 @@ use std::collections::VecDeque;
 
 use rotor::{Scope};
 use rotor_stream::{Protocol, ActiveStream, Intent, Transport, Exception};
+use rotor_tools::future::{new as future, Future, MakeFuture};
 
 use {Context};
+use conversion::ToRedisCommand;
 use port::Port;
 use message::Message;
 
+
+enum State {
+    Connecting,
+    SettingDb(Future<bool>),
+    Operating,
+}
+
+
 pub struct RedisProto<C, S> {
     pub pipeline: VecDeque<Port>,
+    db: u32,
+    state: State,
     phantom: PhantomData<*const (C, S)>,
 }
 
@@ -25,6 +37,8 @@ impl<C: Context, S: ActiveStream> Protocol for RedisProto<C, S> {
     {
         Intent::of(RedisProto {
             pipeline: VecDeque::new(),
+            db: seed,
+            state: State::Connecting,
             phantom: PhantomData,
         }).expect_flush().deadline(scope.now() + scope.connect_timeout())
     }
@@ -62,15 +76,26 @@ impl<C: Context, S: ActiveStream> Protocol for RedisProto<C, S> {
         inp.consume(bytes);
         return Intent::of(self).expect_bytes(1);
     }
-    fn bytes_flushed(self, transport: &mut Transport<Self::Socket>,
+    fn bytes_flushed(mut self, transport: &mut Transport<Self::Socket>,
         scope: &mut Scope<Self::Context>)
         -> Intent<Self>
     {
-        // TODO(tailhook) this is a good time to fetch things from
-        // out of the connection queue
-        //
-        // TODO(tailhook) implement pinging the connections
-        Intent::of(self).sleep()
+        use self::State::*;
+        match self.state {
+            Connecting => {
+                let imp = future(scope, |msg: &Message| {
+                    msg == &Message::Simple("OK")
+                });
+                ("SELECT", format!("{}", self.db))
+                    .write_into(transport.output());
+                self.pipeline.push_back(Port(imp.clone()));
+                self.state = SettingDb(imp.make_future());
+            }
+            _ => {
+                // TODO(tailhook) implement pinging the connections
+            }
+        }
+        Intent::of(self).expect_bytes(1)
     }
     fn timeout(self, transport: &mut Transport<Self::Socket>,
         scope: &mut Scope<Self::Context>) -> Intent<Self>
@@ -78,13 +103,21 @@ impl<C: Context, S: ActiveStream> Protocol for RedisProto<C, S> {
         // TODO(tailhook) fail all the requests
         unimplemented!();
     }
-    fn wakeup(self, transport: &mut Transport<Self::Socket>,
+    fn wakeup(mut self, transport: &mut Transport<Self::Socket>,
         scope: &mut Scope<Self::Context>)
         -> Intent<Self>
     {
-        // This is called by external code to flush the buffers
-        //
-        // TODO(tailhook) derive the real intent
+        use self::State::*;
+        match self.state {
+            SettingDb(future) => {
+                match future.consume() {
+                    Ok(true) => self.state = Operating,
+                    Ok(false) => return Intent::done(),
+                    Err(e) => self.state = SettingDb(e),
+                }
+            }
+            _ => {}
+        }
         Intent::of(self).expect_bytes(1)
     }
 
