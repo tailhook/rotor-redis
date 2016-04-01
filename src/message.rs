@@ -2,7 +2,7 @@ use std::str::from_utf8;
 use substr::find_substr;
 
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Message<'a>{
     Simple(&'a str),
     Error(&'a str, &'a str),
@@ -46,6 +46,19 @@ impl<'a> Message<'a> {
                     }
                 }
             }
+            Some(&b'+') => {
+                match find_substr(&bytes[1..], b"\r\n") {
+                    Some(end) => {
+                        match from_utf8(&bytes[1..end+1]).ok() {
+                            Some(x) => return Done(Simple(x), end+1+2),
+                            None => return InvalidData,
+                        }
+                    }
+                    None => {
+                        return Expect(Newline);
+                    }
+                }
+            }
             Some(_) => {
                 unimplemented!();
             }
@@ -60,8 +73,33 @@ mod test {
     use super::Message::*;
     use super::ParseResult::*;
 
+    fn partial_compare(src: &[u8], tgt: Message) {
+        assert_eq!(Message::parse(src), Done(tgt.clone(), src.len()));
+        for end in 0..src.len() {
+            match Message::parse(&src[..end]) {
+                Done(value, bytes) => {
+                    panic!("premature parser exit for {:?} -> {:?} / {}",
+                        String::from_utf8_lossy(&src[..end]), value, bytes);
+                }
+                Expect(_) => {},
+                InvalidData => {
+                    panic!("Can't parse partial {:?}",
+                        String::from_utf8_lossy(&src[..end]));
+                }
+            }
+        }
+        let garbage = b"$-1\r\n$:102\r\n*12\r\n$$$$";
+        let mut vec = src.to_vec();
+        vec.extend(garbage);
+        assert_eq!(Message::parse(&vec), Done(tgt, src.len()));
+    }
+
     #[test]
     fn test_int() {
         assert_eq!(Message::parse(b":1\r\n"), Done(Int(1), 4));
+    }
+    #[test]
+    fn test_ok() {
+        assert_eq!(Message::parse(b"+OK\r\n"), Done(Simple("OK"), 5));
     }
 }
