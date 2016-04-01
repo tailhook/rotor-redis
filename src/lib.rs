@@ -18,9 +18,9 @@ mod message;
 mod port;
 mod substr;
 pub mod conversion;
-pub mod cmd;
 
 use proto::RedisProto;
+pub use api::Promise;
 pub use context::Context;
 pub use message::Message;
 

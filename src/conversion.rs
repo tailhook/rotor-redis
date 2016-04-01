@@ -1,4 +1,4 @@
-use std::io::{Write, Cursor};
+use std::io::Write;
 
 use rotor_stream::Buf;
 
@@ -149,7 +149,6 @@ impl<A, B, C, D, E, F> ToRedisCommand for (A, B, C, D, E, F)
 
 #[cfg(test)]
 mod test {
-    use std::path::Path;
     use std::str::from_utf8;
     use rotor_stream::Buf;
     use super::{ToRedisArg, ToRedisCommand, RedisIter};

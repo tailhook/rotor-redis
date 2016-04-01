@@ -43,7 +43,7 @@ fn send_string<B: AsRef<[u8]>>(res: &mut Response, data: B) {
 impl Server for HelloWorld {
     type Seed = ();
     type Context = Context;
-    fn headers_received(_seed: (), head: Head, _res: &mut Response,
+    fn headers_received(_seed: (), _head: Head, _res: &mut Response,
         scope: &mut Scope<Context>)
         -> Option<(Self, RecvMode, Time)>
     {
@@ -57,8 +57,8 @@ impl Server for HelloWorld {
         Some((HelloWorld(future), RecvMode::Buffered(1024),
             scope.now() + Duration::new(10, 0)))
     }
-    fn request_received(self, _data: &[u8], res: &mut Response,
-        scope: &mut Scope<Context>)
+    fn request_received(self, _data: &[u8], _res: &mut Response,
+        _scope: &mut Scope<Context>)
         -> Option<Self>
     {
         Some(self)

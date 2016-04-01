@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use rotor_tools::future::{new as future, Future, GetNotifier, MakeFuture};
-use rotor_stream::{ActiveStream, Buf};
+use rotor_stream::{ActiveStream};
 
 use {Redis, Context, Message};
 use port::Port;

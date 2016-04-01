@@ -69,7 +69,7 @@ fn main() {
 
     let mut loop_creator = rotor::Loop::new(
         &rotor::Config::new()).unwrap();
-    let mut redis: Redis<Context, _> = loop_creator.add_and_fetch(Fsm::Redis,
+    let redis: Redis<Context, _> = loop_creator.add_and_fetch(Fsm::Redis,
         |scope| {
             connect_ip(scope,
                 format!("{}:{}", host, port).parse().unwrap(), db)

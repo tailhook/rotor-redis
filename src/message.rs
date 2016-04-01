@@ -96,10 +96,10 @@ mod test {
 
     #[test]
     fn test_int() {
-        assert_eq!(Message::parse(b":1\r\n"), Done(Int(1), 4));
+        partial_compare(b":1\r\n", Int(1));
     }
     #[test]
     fn test_ok() {
-        assert_eq!(Message::parse(b"+OK\r\n"), Done(Simple("OK"), 5));
+        partial_compare(b"+OK\r\n", Simple("OK"));
     }
 }

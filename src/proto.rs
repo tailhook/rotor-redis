@@ -32,7 +32,7 @@ impl<C: Context, S: ActiveStream> Protocol for RedisProto<C, S> {
     /// Start with database number
     type Seed = u32;
 
-    fn create(seed: Self::Seed, sock: &mut Self::Socket,
+    fn create(seed: Self::Seed, _sock: &mut Self::Socket,
         scope: &mut Scope<Self::Context>) -> Intent<Self>
     {
         Intent::of(RedisProto {
@@ -43,7 +43,7 @@ impl<C: Context, S: ActiveStream> Protocol for RedisProto<C, S> {
         }).expect_flush().deadline(scope.now() + scope.connect_timeout())
     }
     fn bytes_read(mut self, transport: &mut Transport<Self::Socket>,
-        end: usize, scope: &mut Scope<Self::Context>)
+        _end: usize, scope: &mut Scope<Self::Context>)
         -> Intent<Self>
     {
         use message::ParseResult::*;
@@ -97,14 +97,14 @@ impl<C: Context, S: ActiveStream> Protocol for RedisProto<C, S> {
         }
         Intent::of(self).expect_bytes(1)
     }
-    fn timeout(self, transport: &mut Transport<Self::Socket>,
-        scope: &mut Scope<Self::Context>) -> Intent<Self>
+    fn timeout(self, _transport: &mut Transport<Self::Socket>,
+        _scope: &mut Scope<Self::Context>) -> Intent<Self>
     {
         // TODO(tailhook) fail all the requests
         unimplemented!();
     }
-    fn wakeup(mut self, transport: &mut Transport<Self::Socket>,
-        scope: &mut Scope<Self::Context>)
+    fn wakeup(mut self, _transport: &mut Transport<Self::Socket>,
+        _scope: &mut Scope<Self::Context>)
         -> Intent<Self>
     {
         use self::State::*;
@@ -122,13 +122,13 @@ impl<C: Context, S: ActiveStream> Protocol for RedisProto<C, S> {
     }
 
     fn exception(self, _transport: &mut Transport<Self::Socket>,
-        reason: Exception, _scope: &mut Scope<Self::Context>)
+        _reason: Exception, _scope: &mut Scope<Self::Context>)
         -> Intent<Self>
     {
         // TODO(tailhook) fail all the requests
         unimplemented!();
     }
-    fn fatal(self, reason: Exception, _scope: &mut Scope<Self::Context>)
+    fn fatal(self, _reason: Exception, _scope: &mut Scope<Self::Context>)
         -> Option<Box<Error>>
     {
         // TODO(tailhook) fail all the requests
