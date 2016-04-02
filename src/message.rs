@@ -59,6 +59,25 @@ impl<'a> Message<'a> {
                     }
                 }
             }
+            Some(&b'-') => {
+                match find_substr(&bytes[1..], b"\r\n") {
+                    Some(end) => {
+                        match from_utf8(&bytes[1..end+1]).ok() {
+                            Some(x) => {
+                                let mut iter = x.splitn(2, " ");
+                                return Done(Error(
+                                    iter.next().unwrap_or(""),
+                                    iter.next().unwrap_or(""),
+                                    ), end+1+2);
+                            }
+                            None => return InvalidData,
+                        }
+                    }
+                    None => {
+                        return Expect(Newline);
+                    }
+                }
+            }
             Some(_) => {
                 panic!("Unimplemented data {:?}", from_utf8(bytes));
             }
@@ -101,5 +120,12 @@ mod test {
     #[test]
     fn test_ok() {
         partial_compare(b"+OK\r\n", Simple("OK"));
+        partial_compare(b"+\r\n", Simple(""));
+    }
+    #[test]
+    fn test_err() {
+        partial_compare(b"-ERR err text\r\n", Error("ERR", "err text"));
+        partial_compare(b"-ERR\r\n", Error("ERR", ""));
+        partial_compare(b"-\r\n", Error("", ""));
     }
 }
