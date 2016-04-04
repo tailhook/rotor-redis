@@ -1,4 +1,4 @@
-use std::str::from_utf8;
+use std::str::{from_utf8, FromStr};
 use substr::find_substr;
 
 
@@ -78,6 +78,35 @@ impl<'a> Message<'a> {
                     }
                 }
             }
+            Some(&b'$') => {
+                match find_substr(&bytes[1..], b"\r\n") {
+                    Some(end) => {
+                        match from_utf8(&bytes[1..end+1]).ok()
+                              .and_then(|x| usize::from_str(x).ok())
+                        {
+                            Some(nbytes) => {
+                                let start = end+1+2;
+                                let str_end = start + nbytes;
+                                let data_end = str_end + 2;
+                                if data_end > bytes.len() {
+                                    return Expect(More(data_end));
+                                } else if &bytes[str_end..data_end] != b"\r\n"
+                                {
+                                        return InvalidData;
+                                } else {
+                                    return Done(
+                                        Bytes(&bytes[start..str_end]),
+                                        data_end);
+                                }
+                            }
+                            None => return InvalidData,
+                        }
+                    }
+                    None => {
+                        return Expect(Newline);
+                    }
+                }
+            }
             Some(_) => {
                 panic!("Unimplemented data {:?}", from_utf8(bytes));
             }
@@ -127,5 +156,16 @@ mod test {
         partial_compare(b"-ERR err text\r\n", Error("ERR", "err text"));
         partial_compare(b"-ERR\r\n", Error("ERR", ""));
         partial_compare(b"-\r\n", Error("", ""));
+    }
+    #[test]
+    fn test_bytes() {
+        partial_compare(b"$12\r\nHello World!\r\n",
+                        Bytes(b"Hello World!"));
+    }
+
+    #[test]
+    fn test_bad_newline() {
+        assert_eq!(Message::parse(b"$12\r\nHello World!--\r\n"),
+                   InvalidData);
     }
 }
