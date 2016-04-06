@@ -1,14 +1,11 @@
 use std::error::Error;
 use std::marker::PhantomData;
-use std::collections::VecDeque;
 
 use rotor::{Scope};
 use rotor_stream::{Protocol, ActiveStream, Intent, Transport, Exception};
-use rotor_tools::future::{new as future, Future, MakeFuture};
 
 use {Context};
 use conversion::ToRedisCommand;
-use port::Port;
 use message::Message;
 
 
@@ -99,15 +96,12 @@ impl<C, S, R> Protocol for RedisProto<C, S, R>
         return Intent::of(self).expect_bytes(1);
     }
     fn bytes_flushed(mut self, transport: &mut Transport<Self::Socket>,
-        scope: &mut Scope<Self::Context>)
+        _scope: &mut Scope<Self::Context>)
         -> Intent<Self>
     {
         use self::State::*;
         match self.state {
             Connecting => {
-                let imp = future(scope, |msg: &Message| {
-                    msg == &Message::Simple("OK")
-                });
                 ("SELECT", format!("{}", self.db))
                     .write_into(transport.output());
                 self.state = SettingDb;
@@ -124,7 +118,7 @@ impl<C, S, R> Protocol for RedisProto<C, S, R>
         // TODO(tailhook) fail all the requests
         unimplemented!();
     }
-    fn wakeup(mut self, _transport: &mut Transport<Self::Socket>,
+    fn wakeup(self, _transport: &mut Transport<Self::Socket>,
         _scope: &mut Scope<Self::Context>)
         -> Intent<Self>
     {
