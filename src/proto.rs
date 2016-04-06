@@ -14,30 +14,35 @@ use message::Message;
 
 enum State {
     Connecting,
-    SettingDb(Future<bool>),
+    SettingDb,
     Operating,
 }
 
+pub trait Receiver {
+    fn receive(&mut self, &Message);
+}
 
-pub struct RedisProto<C, S> {
-    pub pipeline: VecDeque<Port>,
+pub struct RedisProto<C, S, R> {
+    pub receiver: R,
     db: u32,
     state: State,
     phantom: PhantomData<*const (C, S)>,
 }
 
-impl<C: Context, S: ActiveStream> Protocol for RedisProto<C, S> {
+impl<C, S, R> Protocol for RedisProto<C, S, R>
+    where C: Context, S: ActiveStream, R: Receiver
+{
     type Context = C;
     type Socket = S;
     /// Start with database number
-    type Seed = u32;
+    type Seed = (u32, R);
 
-    fn create(seed: Self::Seed, _sock: &mut Self::Socket,
+    fn create((db, recv): Self::Seed, _sock: &mut Self::Socket,
         scope: &mut Scope<Self::Context>) -> Intent<Self>
     {
         Intent::of(RedisProto {
-            pipeline: VecDeque::new(),
-            db: seed,
+            receiver: recv,
+            db: db,
             state: State::Connecting,
             phantom: PhantomData,
         }).expect_flush().deadline(scope.now() + scope.connect_timeout())
@@ -46,14 +51,31 @@ impl<C: Context, S: ActiveStream> Protocol for RedisProto<C, S> {
         _end: usize, scope: &mut Scope<Self::Context>)
         -> Intent<Self>
     {
+        use self::State::*;
         use message::ParseResult::*;
         use message::Expectation::*;
         let inp = transport.input();
         let bytes_read = inp.len();
         let bytes = match Message::parse(&inp[..]) {
             Done(msg, bytes) => {
-                self.pipeline.pop_front().expect("request in a pipeline")
-                    .put(&msg);
+                match self.state {
+                    Connecting => {
+                        debug!("Got response when no request");
+                        // TODO(tailhook) make it Intent::error?
+                        return Intent::done();
+                    }
+                    SettingDb => {
+                        if !matches!(msg, Message::Simple("OK")) {
+                            debug!("Got bad message to SettingDb");
+                            // TODO(tailhook) make it Intent::error?
+                            return Intent::done();
+                        }
+                        self.state = Operating;
+                    }
+                    Operating => {
+                        self.receiver.receive(&msg);
+                    }
+                }
                 bytes
             }
             Expect(x) => match x {
@@ -88,8 +110,7 @@ impl<C: Context, S: ActiveStream> Protocol for RedisProto<C, S> {
                 });
                 ("SELECT", format!("{}", self.db))
                     .write_into(transport.output());
-                self.pipeline.push_back(Port(imp.clone()));
-                self.state = SettingDb(imp.make_future());
+                self.state = SettingDb;
             }
             _ => {
                 // TODO(tailhook) implement pinging the connections
@@ -107,17 +128,6 @@ impl<C: Context, S: ActiveStream> Protocol for RedisProto<C, S> {
         _scope: &mut Scope<Self::Context>)
         -> Intent<Self>
     {
-        use self::State::*;
-        match self.state {
-            SettingDb(future) => {
-                match future.consume() {
-                    Ok(true) => self.state = Operating,
-                    Ok(false) => return Intent::done(),
-                    Err(e) => self.state = SettingDb(e),
-                }
-            }
-            _ => {}
-        }
         Intent::of(self).expect_bytes(1)
     }
 

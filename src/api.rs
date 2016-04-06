@@ -25,7 +25,7 @@ impl<'a, X: 'a, S: 'a, C: ToRedisCommand> Promise<'a, X, S, C>
         self.1.write_into(
             lock.transport().expect("valid redis transport").output());
         lock.protocol().expect("valid redis proto")
-            .pipeline.push_back(Port(imp.clone()));
+            .receiver.add_port(Port(imp.clone()));
         (self.0).1.wakeup().expect("redis notify");
 
         imp.make_future()
